@@ -26,11 +26,13 @@ Index: server/main.c
 +#include <string.h>
 +#include <strings.h>
 +#include <sys/ioctl.h>
++#include <sys/mount.h>
 +#include <sys/resource.h>
 +#include <sys/socket.h>
 +#include <sys/time.h>
 +#include <sys/types.h>
 +#include <sys/wait.h>
++#include <pthread.h>
 +#include <unistd.h>
 +
 +static void netIfaceUp(const char *ifacename)
@@ -71,7 +73,7 @@ Index: server/main.c
 +    netIfaceUp("lo");
 +}
 +
-+static void GETDATA(process_rec *process)
++static void *GETDATA(void *arg)
 +{
 +    int BUFSIZE=1024*1024;
 +    usleep(10000);
@@ -79,10 +81,13 @@ Index: server/main.c
 +    while ( __AFL_LOOP(10000)){
 +        printf("[+] Looping\n");
 +        memset(buf, 0, BUFSIZE);
-+        size_t read_bytes = read(0, buf, BUFSIZE);
-+        buf[BUFSIZE-2] = '\r';
-+        buf[BUFSIZE-1] = '\n';
-+        buf[BUFSIZE] = '\0';
++        ssize_t read_bytes = read(0, buf, BUFSIZE - 3);
++        if (read_bytes <= 0) {
++            continue;
++        }
++        buf[read_bytes] = '\r';
++        buf[read_bytes + 1] = '\n';
++        buf[read_bytes + 2] = '\0';
 +        
 +        int sockfd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
 +        if (sockfd == -1) {
@@ -96,34 +101,37 @@ Index: server/main.c
 +            exit(1);
 +        }
 +
-+        printf("[+] Connecting\n", buf);
++        printf("[+] Connecting\n");
 +
 +        struct sockaddr_in saddr;
 +        saddr.sin_family = AF_INET;
 +        saddr.sin_port = htons(80);
 +        saddr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-+        if (connect(sockfd, &saddr, sizeof(saddr)) == -1) {
++        if (connect(sockfd, (struct sockaddr *)&saddr, sizeof(saddr)) == -1) {
 +            printf("[-] Connect failed\n");
 +            perror("connect");
++            close(sockfd);
 +            continue;
 +        }
 +
 +        printf("[+] Sending buf %s\n", buf);
 +
-+        if (send(sockfd, buf, read_bytes, MSG_NOSIGNAL) != read_bytes) {
++        if (send(sockfd, buf, (size_t)read_bytes + 2, MSG_NOSIGNAL) != (ssize_t)((size_t)read_bytes + 2)) {
 +            perror("send() failed 1");
-+            exit(1);
++            close(sockfd);
++            continue;
 +        }
 +
-+        printf("[+] Buf sent %s\n", &buf);
++        printf("[+] Buf sent %s\n", buf);
 +
 +        if (shutdown(sockfd, SHUT_WR) == -1) {
 +            perror("shutdown");
-+            exit(1);
++            close(sockfd);
++            continue;
 +        }
 +
 +        char b[1024 * 1024];
-+        while (recv(sockfd, b, sizeof(b), MSG_WAITALL) > 0) ;
++        while (recv(sockfd, b, sizeof(b), 0) > 0) ;
 +
 +        printf("[+] Received %s\n", b);
 +
@@ -133,10 +141,10 @@ Index: server/main.c
 +    printf("[+] Whew lad!\n");
 +    usleep(100000);
 +    _exit(0);
-+    exit(0);
++    return NULL;
 +}
 +
-+static void LAUNCHTHR(process_rec *process)
++static void LAUNCHTHR(void)
 +{
 +    pthread_t t;
 +    pthread_attr_t attr;
@@ -145,16 +153,15 @@ Index: server/main.c
 +    pthread_attr_setstacksize(&attr, 1024 * 1024 * 8);
 +    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 +
-+    pthread_create(&t, &attr, GETDATA, process);
++    pthread_create(&t, &attr, GETDATA, NULL);
 +}
 +
 +int main(int argc, const char *const argv[])
 +{
 +
-+    process_rec *process; // Needed to finish apache
 +    if (getenv("NO_FUZZ") == NULL) {
 +        unsh();
-+        LAUNCHTHR(process);
++        LAUNCHTHR();
 +        printf("[+] Launched loop\n");
 +    }
 +    printf("[+] I did follow\n");

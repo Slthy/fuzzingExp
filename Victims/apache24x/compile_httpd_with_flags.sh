@@ -32,7 +32,7 @@ if [[ -z "$apr" || -z "$aprutil" || -z "$nghttp" || -z "$pcre" ]]; then
   echo APR-Util: $aprutil
   echo nghttp: $nghttp
   echo PCRE8: $pcre
-  return 1;
+  exit 1
 fi
 
 echo -e "\e[0m[+] Using the following paths"
