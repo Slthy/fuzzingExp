@@ -18,7 +18,7 @@ echo -e " \e[34mPCRE"
 echo
 echo "Running pcre with: c-compiler:$CC $CFLAGS c++-compiler:$CXX $CXXFLAGS"
 sleep 2
-cd pcre-8* && ./configure --disable-cpp --prefix="$PREFIX" && pcre=$(pwd) && make clean && make -j6 && sudo make install && sudo make install && cd ..
+cd pcre-8* && ./configure --disable-cpp --prefix="$PREFIX" && pcre=$(pwd) && make clean && make -j6 && sudo make install && cd ..
 
 echo -e " \e[35mNGHTTP"
 echo
