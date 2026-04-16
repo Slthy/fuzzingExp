@@ -1,0 +1,14 @@
+#!/bin/sh -e
+
+libdir="/home/sibin/projects/fuzzingExp/Victims/apache24x/nghttp2-1.68.1/lib"
+if [ -d "$libdir/.libs" ]; then
+    libdir="$libdir/.libs"
+fi
+
+export CGO_CFLAGS="-I/home/sibin/projects/fuzzingExp/Victims/apache24x/nghttp2-1.68.1/lib/includes -I/home/sibin/projects/fuzzingExp/Victims/apache24x/nghttp2-1.68.1/lib/includes -g -O2"
+export CGO_CPPFLAGS=""
+export CGO_LDFLAGS="-L$libdir "
+export LD_LIBRARY_PATH="$libdir"
+export DYLD_LIBRARY_PATH="$libdir"
+export GODEBUG=cgocheck=0
+"$@"
