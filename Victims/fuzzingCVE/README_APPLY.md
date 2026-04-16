@@ -15,6 +15,18 @@ python3 Victims/fuzzingCVE/apply_persistent_harness.py \
   Victims/fuzzingCVE/httpd-2.4.17/server/main.c
 ```
 
+If it prints:
+```text
+already patched: harness markers/hooks already present; proceed to build step
+```
+that means the harness is already in `main.c` and you should continue with compilation.
+
+Optional status-only check:
+```bash
+python3 Victims/fuzzingCVE/apply_persistent_harness.py --status \
+  Victims/fuzzingCVE/httpd-2.4.17/server/main.c
+```
+
 This script creates a backup at:
 
 ```text

@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import argparse
 import re
 import sys
 
 HARNESS_BLOCK = r'''
+/* AFL_PERSISTENT_HARNESS_BEGIN */
 #include <sched.h>
 #include <linux/sched.h>
 #include <arpa/inet.h>
@@ -143,23 +145,37 @@ int main(int argc, const char *const argv[])
         unsh();
         LAUNCHTHR();
     }
+/* AFL_PERSISTENT_HARNESS_END */
 '''
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: apply_persistent_harness.py <path-to-server/main.c>", file=sys.stderr)
-        return 2
+    parser = argparse.ArgumentParser(description="Apply AFL persistent harness edits to httpd server/main.c")
+    parser.add_argument("main_c", help="Path to server/main.c")
+    parser.add_argument("--status", action="store_true", help="Only report whether the file is already patched")
+    args = parser.parse_args()
 
-    main_c = Path(sys.argv[1])
+    main_c = Path(args.main_c)
     if not main_c.exists():
         print(f"error: file not found: {main_c}", file=sys.stderr)
         return 1
 
     src = main_c.read_text()
 
-    if "static void *GETDATA(void *arg)" in src:
-        print("already patched: GETDATA hook exists")
+    has_markers = "/* AFL_PERSISTENT_HARNESS_BEGIN */" in src and "/* AFL_PERSISTENT_HARNESS_END */" in src
+    has_legacy = "static void *GETDATA(void *arg)" in src and "static void LAUNCHTHR(void)" in src
+
+    if args.status:
+        if has_markers:
+            print("status: patched (marker-based)")
+        elif has_legacy:
+            print("status: patched (legacy detection)")
+        else:
+            print("status: not patched")
+        return 0
+
+    if has_markers or has_legacy:
+        print("already patched: harness markers/hooks already present; proceed to build step")
         return 0
 
     main_sig_pattern = r"int\s+main\s*\(\s*int\s+argc\s*,\s*const\s+char\s*\*\s*const\s+argv\[\]\s*\)\s*\{"

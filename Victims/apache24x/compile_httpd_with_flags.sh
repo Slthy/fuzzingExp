@@ -42,5 +42,13 @@ echo $nghttp
 echo $pcre
 sleep 4
 
+APR_CONFIG="$PREFIX/bin/apr-1-config"
+APU_CONFIG="$PREFIX/bin/apu-1-config"
+if [[ ! -x "$APR_CONFIG" || ! -x "$APU_CONFIG" ]]; then
+  echo "[-] Missing APR/APR-util config helpers in $PREFIX/bin"
+  echo "    Expected: $APR_CONFIG and $APU_CONFIG"
+  exit 1
+fi
+
 cd httpd-2*   
-LIBS="-L$apr/.libs -L$aprutil/.libs -L$pcre/.libs -L$nghttp/lib/" CFLAGS=" $CFLAGS -I$nghttp/lib/includes -g -ggdb -fno-builtin -fno-inline" LDFLAGS="$CFLAGS" ./configure --enable-unixd --disable-pie --enable-mods-static=few --prefix="$PREFIX" --with-mpm=event --enable-http2 --with-apr=$apr --with-apr-util=$aprutil --with-nghttp2=$nghttp --enable-nghttp2-staticlib-deps --with-pcre=$pcre/pcre-config && make clean && make -j6
+LIBS="-L$apr/.libs -L$aprutil/.libs -L$pcre/.libs -L$nghttp/lib/" CFLAGS=" $CFLAGS -I$nghttp/lib/includes -g -ggdb -fno-builtin -fno-inline" LDFLAGS="$CFLAGS" ./configure --enable-unixd --disable-pie --enable-mods-static=few --prefix="$PREFIX" --with-mpm=event --enable-http2 --with-apr="$APR_CONFIG" --with-apr-util="$APU_CONFIG" --with-nghttp2=$nghttp --enable-nghttp2-staticlib-deps --with-pcre=$pcre/pcre-config && make clean && make -j6
