@@ -2,7 +2,7 @@ Index: server/main.c
 ===================================================================
 --- server/main.c	(revision 1794475)
 +++ server/main.c	(working copy)
-@@ -434,11 +434,157 @@
+@@ -434,11 +434,164 @@
      ap_log_error(APLOG_MARK, APLOG_STARTUP, 0, NULL,
                   "  -X                 : debug mode (only one worker, do not detach)");
  
