@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE modulesynopsis SYSTEM "../style/modulesynopsis.dtd">
+<?xml-stylesheet type="text/xsl" href="../style/manual.fr.xsl"?>
+<!-- English Revision: 1855413 -->
+<!-- French translation : Lucien GENTIS -->
+<!-- Reviewed by : Vincent Deffontaines -->
+
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one or more
+ contributor license agreements.  See the NOTICE file distributed with
+ this work for additional information regarding copyright ownership.
+ The ASF licenses this file to You under the Apache License, Version 2.0
+ (the "License"); you may not use this file except in compliance with
+ the License.  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<modulesynopsis metafile="mod_reqtimeout.xml.meta">
+
+<name>mod_reqtimeout</name>
+<description>Définit le délai maximum et le taux minimum de transfert des
+données pour la réception des requêtes
+</description>
+<status>Extension</status>
+<sourcefile>mod_reqtimeout.c</sourcefile>
+<identifier>reqtimeout_module</identifier>
+<compatibility>Disponible depuis la version 2.2.15 du serveur HTTP Apache</compatibility>
+
+<summary>
+    <p>Ce module permet de définir aisément le délai maximum et le taux de
+    transfert des données minimum pour la réception des requêtes. Si ce délai
+    est dépassé ou ce taux trop faible, la connexion concernée sera fermée par
+    le serveur.</p>
+
+    <p>Cet évènement sera alors enregistré dans le journal au niveau de <directive
+    module="core">LogLevel</directive> <code>info</code>.</p>
+    
+    <p>Au besoin, la directive <directive module="core">LogLevel</directive>
+    peut être modifiée pour un enregistrement dans le journal plus explicite :</p>
+    <highlight language="config">
+      LogLevel reqtimeout:info
+    </highlight>
+</summary>
+
+<section id="examples"><title>Exemples</title>
+
+    <ol>
+      <li>
+	Accorde 5 secondes pour terminer la négociation TLS, 10 secondes pour la
+	réception des en-têtes de la requête et 30 secondes pour la réception du
+	corps :
+
+        <highlight language="config">
+          RequestReadTimeout handshake=5 header=10 body=30
+        </highlight>
+      </li>
+
+      <li>
+        Accorde au moins 10 secondes pour la réception du corps de
+	la requête. Si le client envoie des données, augmente ce délai
+	d'une seconde pour chaque paquet de 1000 octets reçus, sans
+	limite supérieure (sauf si une limite a été
+	spécifiée via la directive <directive
+	module="core">LimitRequestBody</directive>) :
+
+        <highlight language="config">
+          RequestReadTimeout body=10,MinRate=1000
+        </highlight>
+      </li>
+
+      <li>
+        Accorde au moins 10 secondes pour la réception des en-têtes de la
+	requête. Si le client envoie des données, augmente ce délai
+	d'une seconde pour chaque paquet de 500 octets reçus, mais
+	n'alloue que 30 secondes pour les en-têtes de la requête :
+
+        <highlight language="config">
+          RequestReadTimeout header=10-30,MinRate=500
+        </highlight>
+      </li>
+
+      <li>
+        En général, un serveur doit avoir ses délais d'en-tête et de
+	corps configurés. Si les serveurs virtuels http et https
+	utilisent une configuration commune, les délais ne doivent pas
+	être définis trop bas :
+
+        <highlight language="config">
+          RequestReadTimeout header=20-40,MinRate=500 body=20,MinRate=500
+        </highlight>
+      </li>
+
+    </ol>
+</section>
+
+<directivesynopsis>
+<name>RequestReadTimeout</name>
+<description>Définit des délais maximums pour la négociation TLS, la réception
+des en-têtes et/ou corps des requêtes en provenance du client.
+</description>
+<syntax>RequestReadTimeout
+[handshake=<var>timeout</var>[-<var>maxtimeout</var>][,MinRate=<var>rate</var>]
+[header=<var>timeout</var>[-<var>maxtimeout</var>][,MinRate=<var>MinRate</var>]
+[body=<var>timeout</var>[-<var>maxtimeout</var>][,MinRate=<var>MinRate</var>]
+</syntax>
+<default>RequestReadTimeout handshake=0 header=20-40,MinRate=500 body=20,MinRate=500</default>
+<contextlist><context>server config</context><context>virtual host</context>
+</contextlist>
+<compatibility>Disponible depuis la version 2.2.15 du serveur HTTP
+Apache ; désactivée par défaut depuis la version 2.3.14. La phase de
+<code>négociation</code> est prise en compte à partir de la version 2.4.39.</compatibility>
+
+<usage>
+    <p>Cette directive permet de définir différents timeouts pour la négociation
+    TLS, la réception des en-têtes et/ou corps des requêtes en provenance du
+    client. Si le client ne parvient pas à respecter ces timeouts, un code
+    d'erreur <code>408 REQUEST TIME OUT</code> est envoyé.</p>
+
+    <p>Pour les serveurs virtuels SSL, la valeur de timeout pour la
+    <code>négociation</code> correspond au temps nécessaire pour la négociation
+    SSL initiale. Si le navigateur du client est configuré pour demander des
+    listes de révocations de certificats, et si le serveur correspondant n'est
+    pas disponible, le timeout avant lequel le navigateur va abandonner son
+    attente de CRL au cours de la négociation SSL initiale peut être assez
+    important. Par conséquent, les valeurs de timeouts pour la
+    <code>négociation</code> doivent prendre en compte un temps supplémentaire
+    pour les serveurs virtuels SSL (si nécessaire). Le timeout concernant le
+    corps inclut le temps nécessaire à la renégociation SSL (si elle est
+    nécessaire).</p>
+
+    <p>Lorsqu'une directive <directive module="core">AcceptFilter</directive>
+    est active (ce qui est en général le cas sous Linux et FreeBSD), la socket
+    n'est envoyée au processus du serveur qu'après la réception du premier octet
+    (ou de l'ensemble de la requête si <code>httpready</code> est défini). Les
+    timeouts configurés pour la négociation et les en-têtes via la directive
+    <directive>RequestReadTimeout</directive> n'entrent en ligne de compte
+    qu'une fois le socket reçu par le processus du serveur.</p>
+
+    <p>Il existe trois méthodes pour spécifier le timeout pour chacune des trois
+    phases (négociation, en-tête ou corps) :
+    </p>
+
+    <ul>
+
+    <li><strong>Valeur de timeout fixe</strong>:<br />
+
+    <example><var>phase</var>=<var>timeout</var></example>
+
+    <p>Le temps en secondes alloué pour terminer l'ensemble de la phase
+    (négociation, lecture de tous les en-têtes de la requête ou du corps de
+    cette dernière). La valeur 0 signifie aucune limite.</p>
+    </li>
+
+    <li><strong>Désactivation du module pour un serveur virtuel</strong>:<br />
+
+    <example>handshake=0 header=0 body=0</example>
+
+    <p>Avec cet exemple, le module <module>mod_reqtimeout</module> est
+    complètement désactivé (notez que <code>handshake=0</code> correspond à la
+    valeur par défaut et peut donc être omis).</p>
+    </li>
+
+    <li><strong>La valeur du timeout qui est augmentée lorsque des données
+    sont reçues</strong> :<br />
+    <example>
+    <var>phase</var>=<var>timeout</var>,MinRate=<var>débit</var>
+    </example>
+
+    <p>Identique à ce qui précède, mais chaque fois que des données sont
+    reçues, la valeur du timeout est augmentée en fonction du MinRate
+    spécifié (en octets par seconde).</p>
+    </li>
+
+    <li><strong>La valeur du timeout augmente lorsque des données sont
+    reçues, jusqu'à une limite supérieure</strong>:<br />
+    <example>
+    <var>phase</var>=<var>timeout</var>-<var>maxtimeout</var>,MinRate=<var>débit</var>
+    </example>
+
+    <p>Identique à ce qui précède, mais le timeout n'augmentera pas au
+    delà de la borne supérieure du timeout spécifiée.</p>
+    </li>
+
+    </ul>
+
+
+
+
+</usage>
+
+</directivesynopsis>
+
+</modulesynopsis>
